@@ -8,6 +8,7 @@ import base64
 import time
 import datetime
 import urllib2
+import Queue
 
 parentdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yowsup', 'src')
 sys.path.insert(0,parentdir)
@@ -20,42 +21,25 @@ from Yowsup.connectionmanager import YowsupConnectionManager
 
 ### CONSTANTS ###
 
-
 ### FUNCTIONS ###
 
-def getCredentials(config):
-	if os.path.isfile(config):
-		f = open(config)
-		
-		phone = ""
-		idx = ""
-		pw = ""
-		cc = ""
-		
-		try:
-			for l in f:
-				line = l.strip()
-				if len(line) and line[0] not in ('#',';'):
-					
-					prep = line.split('#', 1)[0].split(';', 1)[0].split('=', 1)
-					
-					varname = prep[0].strip()
-					val = prep[1].strip()
-					
-					if varname == "phone":
-						phone = val
-					elif varname == "id":
-						idx = val
-					elif varname =="password":
-						pw = val
-					elif varname == "cc":
-						cc = val
+def loadConfigFile(configfile):
+	""" Loads a yowsup style config file and returns
+		values as a dictionary 
+	"""
+	config = {}
+	if os.path.isfile(configfile):
+		for line in open(configfile):
+			# Remove bits after the comment marker
+			line = line.split('#')[0].strip()
+			# If anything is left
+			if line:
+				print line
+				# Split by first equals sign
+				key, val = line.split('=',1)
+				config[key] = val
+	return config
 
-			return (cc, phone, idx, pw);
-		except:
-			pass
-
-	return 0
 
 ### CLASSES ###
 
@@ -66,27 +50,35 @@ class WhatsappListenerClient:
 
 		connectionManager = YowsupConnectionManager()
 		connectionManager.setAutoPong(keepAlive)
-
 		self.signalsInterface = connectionManager.getSignalsInterface()
 		self.methodsInterface = connectionManager.getMethodsInterface()
 
+		# Configure the listeners
 		self.signalsInterface.registerListener("message_received", self.onMessageReceived)
 		self.signalsInterface.registerListener("group_messageReceived", self.onGroupMessageReceived)
 		self.signalsInterface.registerListener("image_received", self.onImageReceived)
 		self.signalsInterface.registerListener("group_imageReceived", self.onGroupImageReceived)
-
 		self.signalsInterface.registerListener("auth_success", self.onAuthSuccess)
 		self.signalsInterface.registerListener("auth_fail", self.onAuthFailed)
 		self.signalsInterface.registerListener("disconnected", self.onDisconnected)
 
 		self.cm = connectionManager
 
-		self.printer = printer.Usb(0x04b8,0x0202)
+		# Create a printqueue so we won't print two things at the same time
+		self.queue = Queue.Queue()
 
-	def login(self, username, password):
+		try:
+			self.printer = printer.Usb(0x04b8,0x0202)
+		except:
+			print "Failed to initialize printer"
+			self.printer = None
+
+	def start(self, username, password):
+		""" Logs in and starts the main thread that checks and processes
+			the print queue.
+		"""
 		self.username = username
 		self.methodsInterface.call("auth_login", (username, password))
-
 
 		while True:
 			raw_input()	
@@ -141,5 +133,7 @@ class WhatsappListenerClient:
 		self.printer.image('_imr.jpg')
 
 if __name__ == '__main__':
-	listener = WhatsappListenerClient(keepAlive=False, sendReceipts=True)
+	config = loadConfigFile('lebara.yowsupconfig')
+	print config
+	listener = WhatsappListenerClient(keepAlive=True, sendReceipts=True)
 	listener.login(PHONENUMBER, PASSWORD)
