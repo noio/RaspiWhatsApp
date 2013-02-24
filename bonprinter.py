@@ -67,12 +67,6 @@ class WhatsappListenerClient:
 		# Create a printqueue so we won't print two things at the same time
 		self.queue = Queue.Queue()
 
-		try:
-			self.printer = printer.Usb(0x04b8,0x0202)
-		except:
-			print "Failed to initialize printer"
-			self.printer = None
-
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
 			the print queue.
@@ -81,8 +75,35 @@ class WhatsappListenerClient:
 		self.methodsInterface.call("auth_login", (username, password))
 
 		while True:
-			raw_input()	
+			# Sleep to keep thread responsive
+			time.sleep(0.1)
+			try:
+				print self.queue.get(block=False)
+			except Queue.Empty:
+				pass
 
+	def queueMessage(self, jid, timestamp, name, content):
+		""" Adds a message to the print queue """
+		print jid, timestamp, content
+		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
+		output = "%s [%s]:%s"%(jid, formattedDate, content)
+		output += '\n'
+		self.queue.put(('text', output))
+
+	def queueImage(self, jid, url):
+		""" Adds an image to the print queue """
+		print "Received Image"
+		print url
+		image = urllib2.urlopen(url).read()
+		self.queue.put(('image', 'image.jpg'))
+
+	def receipt(self, jid, messageId, wantsReceipt):
+		""" Sends a read receipt if necessary 
+		"""
+		if wantsReceipt and self.sendReceipts:
+			self.methodsInterface.call("message_ack", (jid, messageId))
+
+	## SIGNAL HANDLERS ##
 	def onAuthSuccess(self, username):
 		print "Authed %s" % username
 		self.methodsInterface.call("ready")
@@ -95,45 +116,25 @@ class WhatsappListenerClient:
 		print "Disconnected because %s" %reason
 
 	def onGroupMessageReceived(self, messageId, jid, author, messageContent, timestamp, wantsReceipt, pushName):
-		self.printMessage(jid, timestamp, messageContent)
-
-		if wantsReceipt and self.sendReceipts:
-			self.methodsInterface.call("message_ack", (jid, messageId))
-
+		self.queueMessage(jid=jid, timestamp=timestamp, name=pushName, content=messageContent)
+		self.receipt(jid, messageId, wantsReceipt)
+		
 	def onMessageReceived(self, messageId, jid, messageContent, timestamp, wantsReceipt, pushName):
-		self.printMessage(jid, timestamp, messageContent)
-
-		if wantsReceipt and self.sendReceipts:
-			self.methodsInterface.call("message_ack", (jid, messageId))
-
-	def onImageReceived(self, messageId, jid, preview, url, size, wantsReceipt, pushName):
-		self.printImage(url=url)
+		print messageId, jid, messageContent, timestamp, wantsReceipt, pushName
+		self.queueMessage(jid=jid, timestamp=timestamp, name=pushName, content=messageContent)
+		self.receipt(jid, messageId, wantsReceipt)
+		
+	def onImageReceived(self, messageId, jid, preview, url, size, wantsReceipt):
+		self.queueImage(jid=jid, url=url)
+		self.receipt(jid, messageId, wantsReceipt)
 
 	def onGroupImageReceived(self, messageId, jid, author, preview, url, size, wantsReceipt):
-		self.printImage(url=url)
+		self.queueImage(jid=jid, url=url)
+		self.receipt(jid, messageId, wantsReceipt)
 
-	def printMessage(self, jid, timestamp, content):
-		print jid, timestamp, content
-		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
-		output = "%s [%s]:%s"%(jid, formattedDate, content)
-		output += '\n'
-		self.printer.text(output)
 
-	def printImage(self, url):
-		print "Received Image"
-		print url
-		image = urllib2.urlopen(url).read()
-		open('_im.jpg','wb').write(image)
-		im = Image.open('_im.jpg')
-		if im.size[1] > 255:
-			ratio = 255. / im.size[1]
-			h = int(ratio * im.size[0])
-			im.thumbnail((h, 255), Image.ANTIALIAS)
-			im.save('_imr.jpg')
-		self.printer.image('_imr.jpg')
 
 if __name__ == '__main__':
 	config = loadConfigFile('lebara.yowsupconfig')
-	print config
-	listener = WhatsappListenerClient(keepAlive=True, sendReceipts=True)
-	listener.login(PHONENUMBER, PASSWORD)
+	listener = WhatsappListenerClient(keepAlive=False, sendReceipts=True)
+	listener.start(config['phone'], base64.b64decode(config['password']))
