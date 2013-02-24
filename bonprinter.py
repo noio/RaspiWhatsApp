@@ -20,9 +20,6 @@ from Yowsup.connectionmanager import YowsupConnectionManager
 
 ### CONSTANTS ###
 
-COUNTRYCODE = '31'
-PHONENUMBER = '31617414913'
-PASSWORD = base64.b64decode('PHlhb+9DqepO0CYPPr2ZU1PibWA=')
 
 ### FUNCTIONS ###
 
