@@ -3,4 +3,4 @@
 	url = git://github.com/tgalal/yowsup.git
 [submodule "python-escpos"]
 	path = python-escpos
-	url = git@github.com:noio/python-escpos.git
+	url = git://github.com/noio/python-escpos.git
