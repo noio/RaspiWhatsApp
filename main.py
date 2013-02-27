@@ -9,20 +9,32 @@ import time
 import datetime
 import urllib2
 import Queue
+import StringIO
 
 # LIBRARIES
 import usb
 
-parentdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yowsup', 'src')
-sys.path.insert(0,parentdir)
+yowsupdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yowsup', 'src')
+sys.path.insert(0, yowsupdir)
+escposdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'python-escpos')
+sys.path.insert(0, escposdir)
 
 # LOCAL
 
 from PIL import Image
-from escpos import printer
+import escpos
 from Yowsup.connectionmanager import YowsupConnectionManager
 
 ### CONSTANTS ###
+
+ACTION_TEXT = 'text'
+ACTION_CHAT = 'chat'
+ACTION_IMAGE = 'image'
+ACTION_CUT = 'cut'
+ACTION_FEED = 'feed'
+
+TIMEOUT_CUT = 15 * 60
+TIMEOUT_FEED = 5 * 60
 
 ### FUNCTIONS ###
 
@@ -48,9 +60,11 @@ def loadConfigFile(configfile):
 
 class WhatsappListenerClient:
 
-	def __init__(self, keepAlive = False, sendReceipts = False):
+	def __init__(self, keepAlive=False, sendReceipts=False, dryRun=False):
 		self.sendReceipts = sendReceipts
+		self.dryRun = dryRun
 
+		# Initialize
 		connectionManager = YowsupConnectionManager()
 		connectionManager.setAutoPong(keepAlive)
 		self.signalsInterface = connectionManager.getSignalsInterface()
@@ -68,8 +82,10 @@ class WhatsappListenerClient:
 		self.cm = connectionManager
 
 		# Create a printqueue so we won't print two things at the same time
-		self.queue = Queue.Queue()
+		self.queue = Queue.PriorityQueue()
+		self.history = []
 		self.printer = None
+		self.last_sender = None
 
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
@@ -79,39 +95,104 @@ class WhatsappListenerClient:
 		self.methodsInterface.call("auth_login", (username, password))
 
 		while True:
-			# Sleep to keep thread responsive
 			
 			try:
 				if self.printer is None:
-					self.printer = printer.Usb(0x04b8,0x0202)
+					self.printer = escpos.printer.Usb(0x04b8,0x0202)
 					print "initialized printer"
 				else:
+					# We have a printer, but we still try to poke it
+					# to provoke an error if it is disconnected.
 					self.printer.set()
-				try: 
-					print self.queue.get(block=False)
-				except Queue.Empty:
-					pass
-			except usb.core.USBError as e:
+				# At this point we are sure to have a working printer, 
+				# so we can pop something from the queue and print it.
+				self.processQueue()
+				self.idleUpdate()
+			except (usb.core.USBError, escpos.exceptions.NotFoundError) as e:
 				print type(e)
 				print "Failed to initialize printer: %s" % e
 				self.printer = None
 
-			time.sleep(1)
+			# Sleep to keep thread responsive
+			time.sleep(2)
 
+	def processQueue(self):
+		try:
+			# Pull an item from the queue
+			stamp, action, item = self.queue.get(block=False)
+			now = datetime.datetime.now()
+			# Do something depending on its type
+			if action in (ACTION_CHAT, ACTION_IMAGE):
+				# If we just did a cut or feed, print a new timestamp
+				if not self.history or self.history[-1][1] in (ACTION_FEED, ACTION_CUT):
+					self.doPrint(ACTION_TEXT, stamp.strftime('%a %H:%M\n'))
+					self.last_sender = None
+				# Print the actual item
+				if action == ACTION_CHAT:
+					text = item[1][:150] + '\n'
+					# Check if last message was chat by same person
+					if item[0] != self.last_sender:
+						text = '%s: %s' % (item[0], text)
+					else:
+						text = '> %s' % (text,)
+					self.last_sender = item[0]
+					self.doPrint(ACTION_CHAT, text)
+
+				if action == ACTION_IMAGE:
+					imagedata = urllib2.urlopen(item).read()
+					image = Image.open(StringIO.StringIO(imagedata))
+					self.doPrint(ACTION_IMAGE, image)
+
+			self.addHistory(now, action, item)
+		except Queue.Empty:
+			return False
+			pass
+
+	def idleUpdate(self):
+		if not self.history:
+			return
+		now = datetime.datetime.now()
+		diff = now - self.history[-1][0]
+		# Line feed if time expired
+		if (self.history[-1][1] not in (ACTION_FEED, ACTION_CUT) and
+			diff > datetime.timedelta(seconds=TIMEOUT_FEED)):
+			self.doPrint(ACTION_FEED)
+			self.addHistory(now, ACTION_FEED, None)
+		# Cut after longer time
+		if (self.history[-1][1] != ACTION_CUT and
+			diff > datetime.timedelta(seconds=TIMEOUT_CUT)):
+			self.doPrint(ACTION_CUT)
+			self.addHistory(now, ACTION_CUT, None)
+
+
+	def doPrint(self, action, item=None):
+		if self.dryRun:
+			print "Printer[%s] %s" % (action, item)
+		if action in (ACTION_TEXT, ACTION_CHAT):
+			self.printer.text(item)
+		if action == ACTION_IMAGE:
+			self.printer.fullimage(item)
+		if action == ACTION_FEED:
+			self.printer.text('\n\n')
+		if action == ACTION_CUT:
+			self.printer.cut()
+
+	def addHistory(self, timestamp, action, item):
+		print timestamp, action, item
+		self.history.append((timestamp, action, item))
+	
 	def queueMessage(self, jid, timestamp, name, content):
 		""" Adds a message to the print queue """
 		print jid, timestamp, content
-		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
-		output = "%s [%s]:%s"%(jid, formattedDate, content)
-		output += '\n'
-		self.queue.put(('text', output))
+		stamp = datetime.datetime.fromtimestamp(timestamp)
+		self.queue.put((stamp, ACTION_CHAT, (name, content)))
 
 	def queueImage(self, jid, url):
 		""" Adds an image to the print queue """
 		print "Received Image"
 		print url
-		image = urllib2.urlopen(url).read()
-		self.queue.put(('image', 'image.jpg'))
+		stamp = datetime.datetime.now()
+		self.queue.put((stamp, ACTION_IMAGE, url))
 
 	def receipt(self, jid, messageId, wantsReceipt):
 		""" Sends a read receipt if necessary 
@@ -136,7 +217,6 @@ class WhatsappListenerClient:
 		self.receipt(jid, messageId, wantsReceipt)
 		
 	def onMessageReceived(self, messageId, jid, messageContent, timestamp, wantsReceipt, pushName):
-		print messageId, jid, messageContent, timestamp, wantsReceipt, pushName
 		self.queueMessage(jid=jid, timestamp=timestamp, name=pushName, content=messageContent)
 		self.receipt(jid, messageId, wantsReceipt)
 		
@@ -152,5 +232,5 @@ class WhatsappListenerClient:
 
 if __name__ == '__main__':
 	config = loadConfigFile('lebara.yowsupconfig')
-	listener = WhatsappListenerClient(keepAlive=False, sendReceipts=True)
+	listener = WhatsappListenerClient(keepAlive=True, sendReceipts=True)
 	listener.start(config['phone'], base64.b64decode(config['password']))
