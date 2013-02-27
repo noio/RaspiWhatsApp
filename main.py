@@ -21,7 +21,7 @@ sys.path.insert(0, escposdir)
 
 # LOCAL
 
-from PIL import Image
+import Image
 import escpos
 from Yowsup.connectionmanager import YowsupConnectionManager
 
