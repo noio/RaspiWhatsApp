@@ -10,6 +10,9 @@ import datetime
 import urllib2
 import Queue
 
+# LIBRARIES
+import usb
+
 parentdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yowsup', 'src')
 sys.path.insert(0,parentdir)
 
@@ -66,6 +69,7 @@ class WhatsappListenerClient:
 
 		# Create a printqueue so we won't print two things at the same time
 		self.queue = Queue.Queue()
+		self.printer = None
 
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
@@ -76,11 +80,23 @@ class WhatsappListenerClient:
 
 		while True:
 			# Sleep to keep thread responsive
-			time.sleep(0.1)
+			
 			try:
-				print self.queue.get(block=False)
-			except Queue.Empty:
-				pass
+				if self.printer is None:
+					self.printer = printer.Usb(0x04b8,0x0202)
+					print "initialized printer"
+				else:
+					self.printer.set()
+				try: 
+					print self.queue.get(block=False)
+				except Queue.Empty:
+					pass
+			except usb.core.USBError as e:
+				print type(e)
+				print "Failed to initialize printer: %s" % e
+				self.printer = None
+
+			time.sleep(1)
 
 	def queueMessage(self, jid, timestamp, name, content):
 		""" Adds a message to the print queue """
