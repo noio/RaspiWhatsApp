@@ -86,15 +86,19 @@ class WhatsappListenerClient:
 		self.history = []
 		self.printer = None
 		self.last_sender = None
+		self.connected = False
 
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
 			the print queue.
 		"""
 		self.username = username
-		self.methodsInterface.call("auth_login", (username, password))
-
+		self.password = password
+		self.connect()
+		
 		while True:
+			if not self.connected:
+				self.connect()
 			
 			try:
 				if self.printer is None:
@@ -114,7 +118,11 @@ class WhatsappListenerClient:
 				self.printer = None
 
 			# Sleep to keep thread responsive
-			time.sleep(2)
+			time.sleep(10)
+
+	def connect(self):
+		self.methodsInterface.call("auth_login", (self.username, self.password))
+		time.sleep(5)
 
 	def processQueue(self):
 		try:
@@ -204,13 +212,16 @@ class WhatsappListenerClient:
 	def onAuthSuccess(self, username):
 		print "Authed %s" % username
 		self.methodsInterface.call("ready")
+		self.connected = True
 
 	def onAuthFailed(self, username, err):
 		print "Auth Failed!"
 		print username, err
+		self.connected = False
 
 	def onDisconnected(self, reason):
 		print "Disconnected because %s" %reason
+		self.connected = False
 
 	def onGroupMessageReceived(self, messageId, jid, author, messageContent, timestamp, wantsReceipt, pushName):
 		self.queueMessage(jid=jid, timestamp=timestamp, name=pushName, content=messageContent)
