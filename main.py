@@ -97,13 +97,16 @@ class WhatsappListenerClient:
 		self.connect()
 		
 		while True:
+			print "Connection status: %s" % self.connected
 			if not self.connected:
+				print "Not connected..."
 				self.connect()
+				time.sleep(10)
 			
 			try:
 				if self.printer is None:
 					self.printer = escpos.printer.Usb(0x04b8,0x0202)
-					print "initialized printer"
+					print "Initialized printer."
 				else:
 					# We have a printer, but we still try to poke it
 					# to provoke an error if it is disconnected.
@@ -121,8 +124,9 @@ class WhatsappListenerClient:
 			time.sleep(10)
 
 	def connect(self):
+		print "Connecting..."
 		self.methodsInterface.call("auth_login", (self.username, self.password))
-		time.sleep(5)
+
 
 	def processQueue(self):
 		try:
@@ -210,12 +214,12 @@ class WhatsappListenerClient:
 
 	## SIGNAL HANDLERS ##
 	def onAuthSuccess(self, username):
-		print "Authed %s" % username
+		print "Authed %s." % username
 		self.methodsInterface.call("ready")
 		self.connected = True
 
 	def onAuthFailed(self, username, err):
-		print "Auth Failed!"
+		print "Auth failed."
 		print username, err
 		self.connected = False
 
