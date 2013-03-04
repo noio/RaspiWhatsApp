@@ -33,7 +33,7 @@ ACTION_IMAGE = 'image'
 ACTION_CUT = 'cut'
 ACTION_FEED = 'feed'
 
-TIMEOUT_CUT = 2 * 60 * 60
+TIMEOUT_CUT = 3 * 60 * 60
 TIMEOUT_FEED = 30 * 60
 
 ### FUNCTIONS ###
@@ -95,6 +95,7 @@ class WhatsappListenerClient:
 		self.username = username
 		self.password = password
 		self.connect()
+		time.sleep(10)
 		
 		while True:
 			print "Connection status: %s" % self.connected
@@ -104,13 +105,14 @@ class WhatsappListenerClient:
 				time.sleep(10)
 			
 			try:
-				if self.printer is None:
-					self.printer = escpos.printer.Usb(0x04b8,0x0202)
-					print "Initialized printer."
-				else:
-					# We have a printer, but we still try to poke it
-					# to provoke an error if it is disconnected.
-					self.printer.set()
+				if not self.dryRun:
+					if self.printer is None:
+						self.printer = escpos.printer.Usb(0x04b8,0x0202)
+						print "Initialized printer."
+					else:
+						# We have a printer, but we still try to poke it
+						# to provoke an error if it is disconnected.
+						self.printer.set()
 				# At this point we are sure to have a working printer, 
 				# so we can pop something from the queue and print it.
 				self.processQueue()
@@ -141,12 +143,13 @@ class WhatsappListenerClient:
 					self.last_sender = None
 				# Print the actual item
 				if action == ACTION_CHAT:
-					text = item[1][:150] + '\n'
+					text = item[1][:150].decode('utf-8')
+					user = item[0].decode('utf-8')
 					# Check if last message was chat by same person
 					if item[0] != self.last_sender:
-						text = '%s: %s' % (item[0], text)
+						text = u'%s: %s\n' % (item[0], text)
 					else:
-						text = '> %s' % (text,)
+						text = u'> %s\n' % (text,)
 					self.last_sender = item[0]
 					self.doPrint(ACTION_CHAT, text)
 
@@ -180,8 +183,9 @@ class WhatsappListenerClient:
 	def doPrint(self, action, item=None):
 		if self.dryRun:
 			print "Printer[%s] %s" % (action, item)
+			return
 		if action in (ACTION_TEXT, ACTION_CHAT):
-			self.printer.text(item)
+			self.printer.text(item.encode('ascii','replace'))
 		if action == ACTION_IMAGE:
 			self.printer.fullimage(item)
 		if action == ACTION_FEED:
@@ -247,5 +251,5 @@ class WhatsappListenerClient:
 
 if __name__ == '__main__':
 	config = loadConfigFile('lebara.yowsupconfig')
-	listener = WhatsappListenerClient(keepAlive=True, sendReceipts=True)
+	listener = WhatsappListenerClient(keepAlive=True, sendReceipts=True, dryRun=False)
 	listener.start(config['phone'], base64.b64decode(config['password']))
