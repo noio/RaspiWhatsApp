@@ -98,7 +98,7 @@ class WhatsappListenerClient:
 		time.sleep(10)
 		
 		while True:
-			print "Connection status: %s" % self.connected
+			# print "Connection status: %s" % self.connected
 			if not self.connected:
 				print "Not connected..."
 				self.connect()
