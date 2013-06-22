@@ -6,7 +6,17 @@ clean Raspberry Pi.
 - Clone raspi whatsapp repo (https://github.com/noio/RaspiWhatsApp.git)
 - Get easy_install (setuptools) for Python:
     
-    wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | python
+    wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | sudo python
 
 - `sudo easy_install pip`
-- `pip install pyusb`
+- `sudo pip install pyusb`
+- `sudo apt-get install python-dev`
+- `sudo pip install PIL`
+- Get some tea
+- `git submodule update --init` in the repo directory to get yowsup and python-escpos
+- `sudo pip install pyserial`
+- `sudo pip install python-dateutil`
+
+When this is all done:
+
+http://raspberrypi.stackexchange.com/questions/311/how-do-i-backup-my-raspberry-pi

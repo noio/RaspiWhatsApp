@@ -27,6 +27,8 @@ from Yowsup.connectionmanager import YowsupConnectionManager
 
 ### CONSTANTS ###
 
+LOG_DIR = 'logs'
+
 ACTION_TEXT = 'text'
 ACTION_CHAT = 'chat'
 ACTION_IMAGE = 'image'
@@ -195,7 +197,15 @@ class WhatsappListenerClient:
 
 	def addHistory(self, timestamp, action, item):
 		print timestamp, action, item
+		self.writeLog(timestamp, action, item)
 		self.history.append((timestamp, action, item))
+
+	def writeLog(self, timestamp, action, item):
+		if not os.path.exists(LOG_DIR):
+			os.mkdir(LOG_DIR)
+		fname = datetime.datetime.now().strftime('%Y%m%d.txt')
+		with open(fname, 'a') as logfile:
+			logfile.write('%s %s %s\n' % (timestamp, action, item))
 	
 	def queueMessage(self, jid, timestamp, name, content):
 		""" Adds a message to the print queue """
