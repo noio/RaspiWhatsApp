@@ -1,0 +1,12 @@
+Some things I had to fix in order to get this running on a 
+clean Raspberry Pi.
+
+- Run `sudo dpkg-reconfigure locales` to fix the locales issue. Install 'en-US UTF-8' and set as default.
+- apt-get install screen.
+- Clone raspi whatsapp repo (https://github.com/noio/RaspiWhatsApp.git)
+- Get easy_install (setuptools) for Python:
+    
+    wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | python
+
+- `sudo easy_install pip`
+- `pip install pyusb`
