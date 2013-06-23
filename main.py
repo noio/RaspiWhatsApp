@@ -203,7 +203,7 @@ class WhatsappListenerClient:
 	def writeLog(self, timestamp, action, item):
 		if not os.path.exists(LOG_DIR):
 			os.mkdir(LOG_DIR)
-		fname = datetime.datetime.now().strftime('%Y%m%d.txt')
+		fname = os.path.join(LOG_DIR, datetime.datetime.now().strftime('%Y%m%d.txt'))
 		with open(fname, 'a') as logfile:
 			logfile.write('%s %s %s\n' % (timestamp, action, item))
 	
