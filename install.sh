@@ -26,6 +26,7 @@
 ##### DOING IT AUTOMATICALLY #####
 # First, still run `sudo dpkg-reconfigure locales` to fix the locales issue. Install 'en-US UTF-8' and set as default.
 
+git submodule update --init
 sudo apt-get update
 sudo apt-get -y install screen python-dev
 wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | sudo python
