@@ -28,7 +28,10 @@
 
 git submodule update --init
 sudo apt-get update
-sudo apt-get -y install screen python-dev
+sudo apt-get -y install screen python-dev libjpeg-dev libpng-dev libjpeg62 libjpeg62-dev zlib1g-dev libfreetype6 libfreetype6-dev
+sudo ln -s /usr/lib/arm-linux-gnueabihf/libfreetype.so /usr/lib/
+sudo ln -s /usr/lib/arm-linux-gnueabihf/libz.so /usr/lib/
+sudo ln -s /usr/lib/arm-linux-gnueabihf/libjpeg.so /usr/lib/
 wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | sudo python
 curl -O https://raw.github.com/pypa/pip/master/contrib/get-pip.py
 sudo python get-pip.py
