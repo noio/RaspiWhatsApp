@@ -81,7 +81,6 @@ class WhatsappListenerClient:
 		self.signalsInterface.registerListener("auth_fail", self.onAuthFailed)
 		self.signalsInterface.registerListener("disconnected", self.onDisconnected)
 
-		self.cm = connectionManager
 
 		# Create a printqueue so we won't print two things at the same time
 		self.queue = Queue.PriorityQueue()
