@@ -31,16 +31,18 @@ from Yowsup.Common.debugger import Debugger
 
 ### CONSTANTS ###
 
+FONT = Image.open('font_tom_thumb.png')
+
 EVENT_LASTSEEN = 'lastseen'
 EVENT_AVAILABLE = 'available'
 EVENT_UNAVAILABLE = 'unavailable'
 
 DOTS = 24
-BAR_HEIGHT = 12
-BAR_WIDTH = 2
-BAR_MIN_WIDTH = 1
+BAR_HEIGHT = 4
+BAR_WIDTH = 3
+BAR_MIN_WIDTH = 2
 WIDTH = 512
-BAR_INTERVAL  = timedelta(hours=1) / 60
+BAR_INTERVAL  = timedelta(hours=1) / 6
 BARS_PER_LINE = DOTS / BAR_HEIGHT
 LINE_INTERVAL = BARS_PER_LINE * BAR_INTERVAL
 LINES_PER_DAY = timedelta(days=1).total_seconds() / LINE_INTERVAL.total_seconds()
@@ -123,8 +125,7 @@ class OnlinesClient(object):
 		self.tally = defaultdict(lambda: dict((jid, 0) for jid in self.contacts))
 		self.printer = None
 		self.connected = False
-		self.lastline = datetime.now()
-		self.nextline = findInterval(LINE_INTERVAL)[1]
+		self.lastline, self.nextline = findInterval(LINE_INTERVAL)
 
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
@@ -201,6 +202,8 @@ class OnlinesClient(object):
 			for i in range(BARS_PER_LINE):
 				start = self.lastline + i * BAR_INTERVAL
 				end   = self.lastline + (i + 1) * BAR_INTERVAL
+				if (start, end) not in self.tally:
+					print "NOT FOUND",  (start, end)
 				tallies.append(self.tally[(start, end)])
 				
 			# Sort the tallies by contact order:
@@ -214,7 +217,8 @@ class OnlinesClient(object):
 					print "%s is too old" % (interval,)
 					del self.tally[interval]
 
-			self.createImage(counts)
+			im = self.createImage(counts)
+			self.printer.image(im)
 
 
 	def createImage(self, counts):
@@ -233,7 +237,8 @@ class OnlinesClient(object):
 				im[ymin:ymax, xmin:xmax] = 0
 
 		im = Image.fromarray(im)
-		im.save('output/%d.png' % time.time())
+		im.save('zim%d.png' % time.time())
+		return im
 
 	def receipt(self, jid, messageId, wantsReceipt):
 		""" Sends a read receipt if necessary 
@@ -280,5 +285,5 @@ if __name__ == '__main__':
 	verifySettings()
 	config = loadConfigFile('lebara.yowsupconfig')
 	onlinesconfig = eval(open('dacosta.onlinesconfig').read())
-	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=True)
+	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=False)
 	listener.start(config['phone'], base64.b64decode(config['password']))

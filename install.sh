@@ -30,5 +30,6 @@ git submodule update --init
 sudo apt-get update
 sudo apt-get -y install screen python-dev
 wget https://bitbucket.org/pypa/setuptools/raw/0.7.4/ez_setup.py -O - | sudo python
-sudo easy_install pip
+curl -O https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+sudo python get-pip.py
 sudo pip install pyusb PIL pyserial python-dateutil numpy
