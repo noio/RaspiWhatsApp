@@ -324,7 +324,7 @@ if __name__ == '__main__':
 	verifySettings()
 	config = loadConfigFile('lebara.yowsupconfig')
 	onlinesconfig = eval(open('dacosta.onlinesconfig').read())
-	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=True)
+	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=False)
 	if len(sys.argv) > 1 and sys.argv[1] == 'test':
 		listener.createImage(np.array([[1,0,0,0,1,0,0],[0,3,0,0,2,0,0]]),
 			datetime.now(),['thomas','frank','roos','rikke','iris','marijn','evelien']).save('test.png')
