@@ -31,18 +31,18 @@ from Yowsup.Common.debugger import Debugger
 
 ### CONSTANTS ###
 
-FONT = Image.open('font_tom_thumb.png')
+FONT = Image.open('font_tom_thumb.png').convert('L')
 
 EVENT_LASTSEEN = 'lastseen'
 EVENT_AVAILABLE = 'available'
 EVENT_UNAVAILABLE = 'unavailable'
 
 DOTS = 24
-BAR_HEIGHT = 4
-BAR_WIDTH = 3
-BAR_MIN_WIDTH = 2
+BAR_HEIGHT = 6
+BAR_WIDTH = 4
+BAR_MIN_WIDTH = 1
 WIDTH = 512
-BAR_INTERVAL  = timedelta(hours=1) / 6
+BAR_INTERVAL  = timedelta(hours=1) / 4
 BARS_PER_LINE = DOTS / BAR_HEIGHT
 LINE_INTERVAL = BARS_PER_LINE * BAR_INTERVAL
 LINES_PER_DAY = timedelta(days=1).total_seconds() / LINE_INTERVAL.total_seconds()
@@ -88,6 +88,20 @@ def findInterval(interval, now=datetime.now()):
 	count = int(diff.total_seconds() // interval.total_seconds())
 	return start + count * interval, start + (count + 1) * interval
 
+def imageText(text, font=FONT, lw=4, lh=6, zoom=2):
+	o = np.zeros((lh,len(text)*lw), dtype=np.uint8)
+	f = np.array(FONT)
+	per_row = f.shape[1] // lw
+	for i,letter in enumerate(text):
+		x, y = ord(letter) % per_row, ord(letter) // per_row
+		x*=lw
+		y*=lh
+		o[0:lh, i*lw:(i+1)*lw] = f[y:y+lh, x:x+lw]
+	o = Image.fromarray(o)
+	if zoom != 1:
+		o = o.resize((o.size[0]*zoom, o.size[1]*zoom), Image.NEAREST)
+	return o
+
 ### CLASSES ###
 
 class OnlinesClient(object):
@@ -126,6 +140,7 @@ class OnlinesClient(object):
 		self.printer = None
 		self.connected = False
 		self.lastline, self.nextline = findInterval(LINE_INTERVAL)
+		self.nth = 0
 
 	def start(self, username, password):
 		""" Logs in and starts the main thread that checks and processes
@@ -195,6 +210,8 @@ class OnlinesClient(object):
 	def printEvents(self):
 		""" Process the tallies and print images """
 		now = datetime.now()
+		daystart, _ = findInterval(timedelta(days=1))
+		self.nth = (daystart - self.lastline).total_seconds() // LINE_INTERVAL.total_seconds() 
 		print "Now %s, Nextline at %s" % (now, self.nextline)
 		if now > self.nextline:
 			# Collect the tallies from the last interval
@@ -208,20 +225,31 @@ class OnlinesClient(object):
 				
 			# Sort the tallies by contact order:
 			counts = [[c[o] for o in self.contacts] for c in tallies]
+			if self.nth == 0:
+				printnames = [self.names[jid] for jid in self.contacts]
+			else:
+				printnames = None
+			if self.nth % 2 == 1:
+				printdate = self.lastline
+			else:
+				printdate = None
 			print np.array(counts)
-			self.lastline, self.nextline = findInterval(LINE_INTERVAL, now=now)
+			im = self.createImage(counts, printdate, printnames)
 			
 			# Cleanup the tally list:
+			self.lastline, self.nextline = findInterval(LINE_INTERVAL, now=now)
 			for interval in self.tally.keys():
 				if interval[0] < self.lastline:
 					print "%s is too old" % (interval,)
 					del self.tally[interval]
+			
+			if self.printer:
+				self.printer.image(im)
+			else:
+				im.save('zim%d.png' % time.time())
 
-			im = self.createImage(counts)
-			self.printer.image(im)
 
-
-	def createImage(self, counts):
+	def createImage(self, counts, date=None, texts=None):
 		""" Creates an image out of a single line of tallies """
 		if not len(counts) == DOTS/BAR_HEIGHT:
 			raise Exception("Number of bars should be DOTS/BAR_HEIGHT")
@@ -230,14 +258,25 @@ class OnlinesClient(object):
 
 		im = np.ones((DOTS, WIDTH), dtype=np.uint8) * 255
 		for i, count in enumerate(counts):
-			for j, c in enumerate(count):
+			for j, c in enumerate(count):					
 				ymin, ymax = i*BAR_HEIGHT, (i+1)*BAR_HEIGHT
 				w = min(barw - 1, BAR_MIN_WIDTH + c * BAR_WIDTH)
 				xmin, xmax = startpos[j], startpos[j] + w
 				im[ymin:ymax, xmin:xmax] = 0
+				# print texts on first line
+				if texts and i == 0:
+					t = np.array(imageText(texts[j]))
+					th, tw = t.shape
+					r = startpos[j] + 2
+					im[0:th, r:r+tw] = t
 
+		#Add date
+		if date is not None:
+			t = np.array(imageText(date.strftime('%Y%m%d %H:%M')))
+			th, tw = t.shape
+			im[-th:, -tw-1:-1] = t
+		im[-1,::4] = 0
 		im = Image.fromarray(im)
-		im.save('zim%d.png' % time.time())
 		return im
 
 	def receipt(self, jid, messageId, wantsReceipt):
@@ -285,5 +324,9 @@ if __name__ == '__main__':
 	verifySettings()
 	config = loadConfigFile('lebara.yowsupconfig')
 	onlinesconfig = eval(open('dacosta.onlinesconfig').read())
-	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=False)
+	listener = OnlinesClient(onlinesconfig, keepAlive=True, sendReceipts=True, dryRun=True)
+	if len(sys.argv) > 1 and sys.argv[1] == 'test':
+		listener.createImage(np.array([[1,0,0,0,1,0,0],[0,3,0,0,2,0,0]]),
+			datetime.now(),['thomas','frank','roos','rikke','iris','marijn','evelien']).save('test.png')
 	listener.start(config['phone'], base64.b64decode(config['password']))
+

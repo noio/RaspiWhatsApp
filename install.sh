@@ -28,7 +28,9 @@
 
 git submodule update --init
 sudo apt-get update
-sudo apt-get -y install screen python-dev libjpeg-dev libpng-dev libjpeg62 libjpeg62-dev zlib1g-dev libfreetype6 libfreetype6-dev
+sudo apt-get -y install screen python-dev 
+sudo apt-get install libjpeg8 libjpeg62-dev libfreetype6 libfreetype6-dev
+sudo apt-get install python-imaging
 sudo ln -s /usr/lib/arm-linux-gnueabihf/libfreetype.so /usr/lib/
 sudo ln -s /usr/lib/arm-linux-gnueabihf/libz.so /usr/lib/
 sudo ln -s /usr/lib/arm-linux-gnueabihf/libjpeg.so /usr/lib/
