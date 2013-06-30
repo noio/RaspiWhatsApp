@@ -212,7 +212,7 @@ class OnlinesClient(object):
 		now = datetime.now()
 		daystart, _ = findInterval(timedelta(days=1))
 		self.nth = (daystart - self.lastline).total_seconds() // LINE_INTERVAL.total_seconds() 
-		print "Now %s, Nextline at %s" % (now, self.nextline)
+		# print "Now %s, Nextline at %s" % (now, self.nextline)
 		if now > self.nextline:
 			# Collect the tallies from the last interval
 			tallies = []
@@ -230,7 +230,7 @@ class OnlinesClient(object):
 			else:
 				printnames = None
 			if self.nth % 2 == 1:
-				printdate = self.lastline
+				printdate = self.nextline
 			else:
 				printdate = None
 			print np.array(counts)
