@@ -256,13 +256,14 @@ class OnlinesClient(object):
 		barw = WIDTH // len(self.contacts)
 		startpos = [barw * i for i in range(len(self.contacts))]
 
+		im = np.ones((DOTS, WIDTH), dtype=np.uint8) * 255
+
 		#Add date
 		if date is not None:
 			t = np.array(imageText(date.strftime('%Y%m%d %H:%M')))
 			th, tw = t.shape
 			im[-th:, -tw-1:-1] = t
 
-		im = np.ones((DOTS, WIDTH), dtype=np.uint8) * 255
 		for i, count in enumerate(counts):
 			for j, c in enumerate(count):					
 				ymin, ymax = i*BAR_HEIGHT, (i+1)*BAR_HEIGHT
