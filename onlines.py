@@ -229,7 +229,7 @@ class OnlinesClient(object):
 				printnames = [self.names[jid] for jid in self.contacts]
 			else:
 				printnames = None
-			if self.nth % 2 == 1:
+			if self.nth % 6 == 1:
 				printdate = self.nextline
 			else:
 				printdate = None
@@ -256,6 +256,12 @@ class OnlinesClient(object):
 		barw = WIDTH // len(self.contacts)
 		startpos = [barw * i for i in range(len(self.contacts))]
 
+		#Add date
+		if date is not None:
+			t = np.array(imageText(date.strftime('%Y%m%d %H:%M')))
+			th, tw = t.shape
+			im[-th:, -tw-1:-1] = t
+
 		im = np.ones((DOTS, WIDTH), dtype=np.uint8) * 255
 		for i, count in enumerate(counts):
 			for j, c in enumerate(count):					
@@ -270,11 +276,7 @@ class OnlinesClient(object):
 					r = startpos[j] + 2
 					im[0:th, r:r+tw] = t
 
-		#Add date
-		if date is not None:
-			t = np.array(imageText(date.strftime('%Y%m%d %H:%M')))
-			th, tw = t.shape
-			im[-th:, -tw-1:-1] = t
+		
 		im[-1,::4] = 0
 		im = Image.fromarray(im)
 		return im
