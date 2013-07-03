@@ -210,8 +210,10 @@ class OnlinesClient(object):
 	def printEvents(self):
 		""" Process the tallies and print images """
 		now = datetime.now()
+		# now = now.replace(hour=0, minute=0)
 		daystart, _ = findInterval(timedelta(days=1))
-		self.nth = (self.lastline - daystart).total_seconds() // LINE_INTERVAL.total_seconds() 
+		self.nth = int((self.lastline - daystart).total_seconds() // LINE_INTERVAL.total_seconds())
+		print self.nth, daystart, self.lastline
 		# print "Now %s, Nextline at %s" % (now, self.nextline)
 		if now > self.nextline:
 			# Collect the tallies from the last interval
@@ -225,11 +227,13 @@ class OnlinesClient(object):
 				
 			# Sort the tallies by contact order:
 			counts = [[c[o] for o in self.contacts] for c in tallies]
-			if self.nth == 2:
+			if self.nth == 0:
+				print "Adding names"
 				printnames = [self.names[jid] for jid in self.contacts]
 			else:
 				printnames = None
-			if self.nth % 6 == 1:
+			if self.nth % 6 == 0:
+				print "Adding date"
 				printdate = self.nextline
 			else:
 				printdate = None
