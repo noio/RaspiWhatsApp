@@ -211,9 +211,9 @@ class OnlinesClient(object):
 		""" Process the tallies and print images """
 		now = datetime.now()
 		# now = now.replace(hour=0, minute=0)
-		daystart, _ = findInterval(timedelta(days=1))
+		daystart, _ = findInterval(timedelta(days=1), now)
 		self.nth = int((self.lastline - daystart).total_seconds() // LINE_INTERVAL.total_seconds())
-		print self.nth, daystart, self.lastline
+		print self.nth, daystart, self.lastline, now
 		# print "Now %s, Nextline at %s" % (now, self.nextline)
 		if now > self.nextline:
 			# Collect the tallies from the last interval
