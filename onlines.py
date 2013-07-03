@@ -232,7 +232,7 @@ class OnlinesClient(object):
 				printnames = [self.names[jid] for jid in self.contacts]
 			else:
 				printnames = None
-			if self.nth % 6 == 0:
+			if self.nth % 6 == 5:
 				print "Adding date"
 				printdate = self.nextline
 			else:
