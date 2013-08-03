@@ -35,8 +35,8 @@ ACTION_IMAGE = 'image'
 ACTION_CUT = 'cut'
 ACTION_FEED = 'feed'
 
-TIMEOUT_CUT = 3 * 60 * 60
-TIMEOUT_FEED = 30 * 60
+TIMEOUT_CUT = 6 * 60 * 60
+TIMEOUT_FEED = 45 * 60
 
 ### FUNCTIONS ###
 
@@ -84,7 +84,7 @@ class WhatsappListenerClient:
 
 		# Create a printqueue so we won't print two things at the same time
 		self.queue = Queue.PriorityQueue()
-		self.history = []
+		self.history = [] #List of timestamp, action, item
 		self.printer = None
 		self.last_sender = None
 		self.connected = False
@@ -140,7 +140,7 @@ class WhatsappListenerClient:
 			if action in (ACTION_CHAT, ACTION_IMAGE):
 				# If we just did a cut or feed, print a new timestamp
 				if not self.history or self.history[-1][1] in (ACTION_FEED, ACTION_CUT):
-					self.doPrint(ACTION_TEXT, stamp.strftime('%a %H:%M\n'))
+					self.doPrint(ACTION_TEXT, stamp.strftime('%a (%b %d) %H:%M\n'))
 					self.last_sender = None
 				# Print the actual item
 				if action == ACTION_CHAT:
@@ -155,9 +155,14 @@ class WhatsappListenerClient:
 					self.doPrint(ACTION_CHAT, text)
 
 				if action == ACTION_IMAGE:
-					imagedata = urllib2.urlopen(item).read()
-					image = Image.open(StringIO.StringIO(imagedata))
-					self.doPrint(ACTION_IMAGE, image)
+					# Don't print the same image twice. For some reason 
+					# Whatsapp sometimes sends the same image twice, but with a URL in a
+					# different folder on the mms server (hence the basename).
+					if not (self.history[-1][1] == ACTION_IMAGE and
+							os.path.basename(self.history[-1][2]) == os.path.basename(item)):
+						imagedata = urllib2.urlopen(item).read()
+						image = Image.open(StringIO.StringIO(imagedata))
+						self.doPrint(ACTION_IMAGE, image)
 
 			self.addHistory(now, action, item)
 		except Queue.Empty:
